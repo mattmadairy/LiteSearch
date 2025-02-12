@@ -271,7 +271,6 @@ def listBoxPop():
         listBox.insert(END, showNotificationData)
     root.after(3000, listBoxPop)
 
-
 #Resize BG image
 def resize_image(image_path, dpi=(96, 96)):
     img = Image.open(image_path)
@@ -360,6 +359,4 @@ listBox.pack(side=LEFT,
              expand=True)
 
 listBoxPop()
-
-#refreshLB()
 root.mainloop()
