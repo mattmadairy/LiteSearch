@@ -1,0 +1,7 @@
+The Baltimore County Police Dispatch LiteSearch is a database of all traffic lights within Baltimore County, MD.
+
+It serves as a searchable database for Baltimore County Police Dispatch personnel to obtain jurisdictional responsibility for traffic light maintinence and repairs.
+
+This program also logs all searches and notifications for repair requests and sends data to appropriate personnel on a predetermined basis.
+
+Copyright 2025, M. Madairy

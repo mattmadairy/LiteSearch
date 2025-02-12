@@ -1,0 +1,8 @@
+python 3.11
+pip
+sqlite3
+csv #only if DB is broken & needs to be rebuilt
+pandas #only if DB is broken & needs to be rebuilt
+pyspellchecker
+tkinter
+Pillow (PIL)

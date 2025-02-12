@@ -1,0 +1,34 @@
+County Signal Shop 410 887 8601 (M-F 0700-1600) call after hours number if no answer.
+County Sign Shop 410 887 8602
+County Signal & Sign After hours 410 967 7096
+
+If no answer on shop or after hours numbers, call in descending order:
+    1)  Mike Lorenzo 410 967 7103 (Co. Cell)
+    2)  Tim Price 443 823 9390 (Per. Cell)
+    3)  Angelica Daniel 410 207 9670 (Per. Cell)
+    **Stop after first contact.
+
+State Signal/Sign Shop - 24/7 Statewide Operations Center 410 582 5650 or 1800 543 2515
+
+City Sign & Signal - 24/7 Traffic Management Center 443 984 2189
+
+MDTA: 410 537 1230
+
+Log Data Needed:
+
+Request Date & Time
+Requesting Unit
+Location
+Notification Time
+Agency Notified
+Person Notifying
+
+After Hours County Light Parameters:
+1) 2 bulbs of same color out going in same direction
+2) All signal indications out due to power outage (Also notify BGE)
+3) All signals on flash.
+4) Knockdown of any signal
+
+After Hours County Sign Parameters:
+1) Missing stop sign at 4-leg intersection only. T intersection stop signs are only called in after hours if it is deemed to be critical.
+2) One-way & Do Not Enter signs, if all signs are missing at given location.
