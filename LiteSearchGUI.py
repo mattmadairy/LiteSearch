@@ -1,24 +1,238 @@
-from tkinter import *
+# --- GLOBAL IMPORTS ---
+from tkinter import Tk, Menu, Label, Entry, Toplevel, Frame, Button, StringVar, messagebox, Text, Scrollbar, VERTICAL, END, LEFT, RIGHT, BOTH, Y
 from tkinter import ttk
-import LiteSearchBackend as LSB
+from datetime import datetime, timedelta
+import LiteSearchBackend
+import sqlite3
 import ctypes
-import datetime
 
-# Utility functions
-def resetEntry():
-    LSB.log_event('RESET', 'MAIN WINDOW RESET', 'SYS')
-    searchEntry.delete(0, END)
+LSB = LiteSearchBackend  # Use module as LSB
+
+def center_window(win, width, height):
     try:
-        treeSearchEntry.delete(0, END)
+        win.update_idletasks()
+        ws = win.winfo_screenwidth()
+        hs = win.winfo_screenheight()
+        x = (ws // 2) - (width // 2)
+        y = (hs // 2) - (height // 2)
+        win.geometry(f'{width}x{height}+{x}+{y}')
     except Exception:
         pass
+
+# Top-level resetEntry function
+def listBoxPop():
+    # Clear all items from the Treeview
+    notificationTree.delete(*notificationTree.get_children())
+    notificationsList = LSB.listBoxData()
+    for notification in notificationsList:
+        if len(notification) >= 11:
+            cleaned = [str(x).replace('\n', ' ') if isinstance(x, str) else x for x in notification]
+            db_id = cleaned[0]
+            request_date = cleaned[2]
+            request_time = cleaned[3]
+            unit = cleaned[4]
+            location = cleaned[5]
+            agency = cleaned[6]
+            notification_date = cleaned[7]
+            notification_time = cleaned[8]
+            user = cleaned[9]
+            nature = cleaned[10]
+            record_added = cleaned[1]
+            # Convert notification_date from ISO to MM-DD-YYYY for display
+            try:
+                notification_date_display = datetime.strptime(notification_date, '%Y-%m-%d').strftime('%m-%d-%Y')
+            except Exception:
+                notification_date_display = notification_date
+            values = [
+                db_id,
+                f"{request_date} {request_time}",
+                unit,
+                location,
+                agency,
+                nature,
+                f"{notification_date_display} {notification_time}",
+                user,
+                record_added
+            ]
+            notificationTree.insert('', 'end', values=values)
+        else:
+            padded = [''] * 9
+            notificationTree.insert('', 'end', values=padded)
+def resetEntry():
+    searchEntry.delete(0, END)
+    notificationTree.delete(*notificationTree.get_children())
+    listBoxPop()
+
+# Top-level resetTreeSearchEntry function
+def resetTreeSearchEntry():
+    treeSearchEntry.delete(0, END)
+    notificationTree.delete(*notificationTree.get_children())
+    listBoxPop()  # Fully repopulate the treeview
+
+# Print preview window for weekly report
+def open_weekly_report_preview():
+    preview_win = Toplevel()
+    preview_win.title("Weekly Report Preview")
+    preview_win.geometry("800x600")
+    center_window(preview_win, 800, 600)
+
+    # Calculate start and end dates
+    end_date = datetime.now().date()
+    start_date = end_date - timedelta(days=7)
+
+    # Dates entry at top
+    dates_frame = Frame(preview_win)
+    dates_frame.pack(fill='x', padx=10, pady=(10, 0))
+    Label(dates_frame, text="Start Date:", font=("Arial", 11, "bold")).pack(side='left', padx=(0, 5))
+    start_date_var = StringVar(value=start_date.strftime('%Y-%m-%d'))
+    start_date_entry = Entry(dates_frame, textvariable=start_date_var, font=("Arial", 11), width=12)
+    start_date_entry.pack(side='left', padx=(0, 20))
+    Label(dates_frame, text="End Date:", font=("Arial", 11, "bold")).pack(side='left', padx=(0, 5))
+    end_date_var = StringVar(value=end_date.strftime('%Y-%m-%d'))
+    end_date_entry = Entry(dates_frame, textvariable=end_date_var, font=("Arial", 11), width=12)
+    end_date_entry.pack(side='left', padx=(0, 10))
+
+    header_text = "LiteSearch\nWeekly Notification Report\n"
+    def get_timeframe():
+        return f"Timeframe: {start_date_var.get()} to {end_date_var.get()}"
+    text = Text(preview_win, wrap='none', font=("Consolas", 10))
+    text.pack(expand=True, fill='both', padx=10, pady=10)
+    def populate_text_with_report():
+        text.delete('1.0', 'end')
+        # Header
+        text.insert('end', header_text)
+        text.insert('end', get_timeframe() + "\n\n")
+        try:
+            start = datetime.strptime(start_date_var.get(), '%Y-%m-%d').date()
+            end = datetime.strptime(end_date_var.get(), '%Y-%m-%d').date()
+            end_inclusive = end + timedelta(days=1)
+        except Exception:
+            text.insert('end', "Invalid date format. Please use YYYY-MM-DD.\n")
+            return
+        conn = sqlite3.connect(LSB.db_name)
+        cursor = conn.cursor()
+        # Filter using timestamp field, make end date inclusive
+        cursor.execute("SELECT * FROM Notification_List WHERE timestamp >= ? AND timestamp < ? ORDER BY timestamp DESC", (start.strftime('%Y-%m-%d'), end_inclusive.strftime('%Y-%m-%d')))
+        rows = cursor.fetchall()
+        conn.close()
+        # --- FIXED INDENTATION ---
+        if rows and len(rows) > 0:
+            headers = [
+                "Request_Date/Time", "Unit", "Location", "Agency", "Nature", "Notification_Date/Time", "USER_ID", "Record_Added"
+            ]
+            # Build all data rows first
+            data_rows = []
+            for row in rows:
+                try:
+                    notification_date_display = datetime.strptime(row[7], '%Y-%m-%d').strftime('%m-%d-%Y')
+                except Exception:
+                    notification_date_display = row[7]
+                request_date_time = f"{row[2]} {row[3]}"
+                unit = str(row[4])
+                location = str(row[5])
+                agency = str(row[6])
+                nature = str(row[10])
+                notification_time = str(row[8])
+                notification_date_time = f"{notification_date_display} {notification_time}"
+                user_id = str(row[9])
+                record_added = str(row[1])
+                values = [
+                    request_date_time,
+                    unit,
+                    location,
+                    agency,
+                    nature,
+                    notification_date_time,
+                    user_id,
+                    record_added
+                ]
+                data_rows.append(values)
+            # Calculate max width for each column
+            col_widths = [len(headers[i]) for i in range(len(headers))]
+            for row in data_rows:
+                for i, val in enumerate(row):
+                    col_widths[i] = max(col_widths[i], len(str(val)))
+            def center_text(text, width):
+                text = str(text)
+                if len(text) >= width:
+                    return text[:width]
+                pad = width - len(text)
+                left = pad // 2
+                right = pad - left
+                return ' ' * left + text + ' ' * right
+
+            def wrap_text(text, width):
+                text = str(text)
+                return [text[i:i+width] for i in range(0, len(text), width)] or ['']
+
+            # Header row
+            header_line = "|" + "|".join([center_text(h, col_widths[i]) for i, h in enumerate(headers)]) + "|\n"
+            # Separator row
+            sep_line = "|" + "|".join(["-" * col_widths[i] for i in range(len(col_widths))]) + "|\n"
+            text.insert('end', header_line)
+            text.insert('end', sep_line)
+            for values in data_rows:
+                # Wrap each column's value
+                wrapped_cols = [wrap_text(values[i], col_widths[i]) for i in range(len(values))]
+                max_lines = max(len(wrapped) for wrapped in wrapped_cols)
+                # Pad columns so all have the same number of lines
+                for i in range(len(wrapped_cols)):
+                    if len(wrapped_cols[i]) < max_lines:
+                        wrapped_cols[i].extend([''] * (max_lines - len(wrapped_cols[i])))
+                # Print each line for this row
+                for line_idx in range(max_lines):
+                    line_parts = []
+                    for i in range(len(wrapped_cols)):
+                        cell = wrapped_cols[i][line_idx]
+                        if i == 2:  # Location column index
+                            # Left-justify Location
+                            part = str(cell).ljust(col_widths[i])
+                        else:
+                            part = center_text(cell, col_widths[i])
+                        line_parts.append(part)
+                    line = "|" + "|".join(line_parts) + "|\n"
+                    text.insert('end', line)
+        else:
+            text.insert('end', "No records found.\n")
+    generate_btn = Button(dates_frame, text="Generate", command=populate_text_with_report, width=12)
+    generate_btn.pack(side='left', padx=(10, 0))
+    populate_text_with_report()
+    # ...existing code for open_weekly_report_preview (dates_frame, header_text, get_timeframe, text widget, populate_text_with_report, buttons, etc.)...
+# Weekly report function
+def generate_weekly_report():
+    import sqlite3
+    from datetime import datetime, timedelta
+    conn = sqlite3.connect(LSB.db_name)
+    cursor = conn.cursor()
+    # Calculate date 7 days ago
+    today = datetime.now().date()
+    seven_days_ago = today - timedelta(days=7)
+    # Query for records in the last 7 days (assuming Notification_date is in YYYY-MM-DD format)
+    cursor.execute("SELECT * FROM Notification_List WHERE Notification_date >= ? ORDER BY Notification_date DESC", (seven_days_ago.strftime('%Y-%m-%d'),))
+    rows = cursor.fetchall()
+    conn.close()
+    # Format report as a list of dicts
+    report = []
+    for row in rows:
+        # ...existing code for formatting report rows...
+        report.append(row)
+    # Decreased width for Nature
+    default_column_widths = {
+        'Nature': 60,
+        'Notification_Date/Time': 140,
+        'USER_ID': 60,
+        'Record_Added': 120
+    }
+    for col, width in default_column_widths.items():
+        notificationTree.column(col, width=width, anchor='center', stretch=True)
     listBoxPop()  # Rebuild the Treeview
 
 def logFiles():
-    print('Log Files Requested')
+    # ...existing code...
     LSB.log_event('REQUEST', 'LOG FILES TAB REQUESTED', 'MLM91')
     top = Toplevel()
     top.geometry('425x200')
+    center_window(top, 425, 200)
     top.title('Baltimore County Police Dispatch LiteSearch')
     top.iconbitmap('imagery\\Traffic_Light.ico')
     menu = Menu(top)
@@ -33,6 +247,7 @@ def about():
     LSB.log_event('REQUEST', 'REQUEST ABOUT INFO', 'MLM91')
     top = Toplevel()
     top.geometry('425x200')
+    center_window(top, 425, 200)
     top.title('Baltimore County Police Dispatch LiteSearch')
     top.iconbitmap('imagery\\Traffic_Light.ico')
     with open('about.txt', 'r') as aboutFile:
@@ -44,6 +259,7 @@ def license():
     LSB.log_event('REQUEST', 'REQUEST LICENSE INFO', 'MLM91')
     top = Toplevel()
     top.geometry('425x350')
+    center_window(top, 425, 350)
     top.title('Baltimore County Police Dispatch LiteSearch')
     top.iconbitmap('imagery\\Traffic_Light.ico')
     with open('LICENSE', 'r') as licenseFile:
@@ -64,6 +280,7 @@ def support():
     LSB.log_event('REQUEST', 'REQUEST SUPPORT WINDOW', 'MLM91')
     top = Toplevel()
     top.geometry('425x365')
+    center_window(top, 425, 365)
     top.title('Baltimore County Police Dispatch LiteSearch')
     top.iconbitmap('imagery\\Traffic_Light.ico')
     supportLabel = Label(top, text='\nContact Support\n', font=('Arial', 12, 'bold'))
@@ -85,54 +302,6 @@ def support():
     submitButton.pack(padx=2.5, pady=10)
     resetButton.pack(padx=2.5)
 
-def format_dt(dt_str):
-    import datetime
-    try:
-        for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%m/%d/%Y %H:%M", "%Y-%m-%dT%H:%M:%S"):
-            try:
-                dt = datetime.datetime.strptime(dt_str, fmt)
-                return dt.strftime("%m-%d-%Y    %H:%M")
-            except ValueError:
-                continue
-        return dt_str
-    except Exception:
-        return dt_str
-
-def listBoxPop():
-    notificationTree.delete(*notificationTree.get_children())
-    notificationsList = LSB.listBoxData()
-    for notification in notificationsList:
-        if len(notification) >= 11:
-            cleaned = [str(x).replace('\n', ' ') if isinstance(x, str) else x for x in notification]
-            if cleaned[0] is None or cleaned[0] == 'None':
-                print('DEBUG: Skipping record with None ID:', cleaned)
-                continue
-            db_id = cleaned[0]
-            request_date = cleaned[2]
-            request_time = cleaned[3]
-            unit = cleaned[4]
-            location = cleaned[5]
-            agency = cleaned[6]
-            notification_date = cleaned[7]
-            notification_time = cleaned[8]
-            user = cleaned[9]
-            nature = cleaned[10]
-            record_added = cleaned[1]
-            # Only display the correct columns
-            values = [
-                f"{request_date}    {request_time}",  # Request_Date/Time
-                unit,                                    # Unit
-                location,                                # Location
-                agency,                                  # Agency
-                nature,                                  # Nature
-                f"{notification_date}    {notification_time}", # Notification_Date/Time
-                user,                                    # USER_ID
-                record_added,                            # Record_Added
-            ]
-            notificationTree.insert('', 'end', iid=db_id, values=values)  # Use db_id as iid for internal reference
-        else:
-            padded = [''] * 8
-            notificationTree.insert('', 'end', values=padded)
 
 def show_treeview_context_menu(event):
     item_id = notificationTree.identify_row(event.y)
@@ -147,7 +316,11 @@ def edit_selected_record():
     item_id = notificationTree.focus()
     if not item_id:
         return
-    db_id = item_id  # Use item iid for DB lookup
+    values = notificationTree.item(item_id, 'values')
+    if not values:
+        messagebox.showwarning("No selection", "Please select a record to edit.")
+        return
+    db_id = values[0]  # Use DB_ID from Treeview values for DB lookup
     import sqlite3
     conn = sqlite3.connect(LSB.db_name)
     cursor = conn.cursor()
@@ -155,9 +328,9 @@ def edit_selected_record():
     row = cursor.fetchone()
     conn.close()
     if not row:
-        print('DEBUG: No record found in DB for ID:', db_id)
+        messagebox.showerror("Error", f"No record found with DB_ID {db_id}.")
         return
-    print('DEBUG: DB row for edit:', row)
+    # ...existing code...
     # Correct mapping based on your debug output and actual DB order
     request_date_value = row[2] if row[2] is not None else ''
     request_time_value = row[3] if row[3] is not None else ''
@@ -181,11 +354,12 @@ def edit_selected_record():
         user_value,
         record_added_value
     ]
-    print('DEBUG: Entry values for edit form:', entry_values)
+    # ...existing code...
     labels = ['Request Date:', 'Request Time:', 'Unit:', 'Location:', 'Agency:', 'Nature:', 'Notification Date:', 'Notification Time:', 'User:', 'Record Added:']
     edit_win = Toplevel(root)
     edit_win.title('Baltimore County Police Dispatch LiteSearch')
     edit_win.geometry('425x490')
+    center_window(edit_win, 425, 490)
     edit_win.iconbitmap('imagery\\Traffic_Light.ico')
     masterLabel = Label(edit_win, text='Edit Notification Record', font=('Arial', 14, 'bold'))
     masterLabel.pack(pady=10)
@@ -222,8 +396,7 @@ def edit_selected_record():
         entries[idx].bind('<FocusIn>', highlight_entry, add='+')
     def save_edits():
         new_values = [e.get() for e in entries]
-        print('DEBUG: Saving edits with values:', new_values)
-        print('DEBUG: db_id:', db_id)
+    # ...existing code...
         if not new_values[0].strip() or not new_values[1].strip():
             from tkinter import messagebox
             messagebox.showerror('Input Error', 'Request Date and Request Time must be filled.')
@@ -242,18 +415,20 @@ def edit_selected_record():
         notif_time = new_values[7]
         user = new_values[8]
         # record_added = new_values[9] # Not updated
+        # Get db_id from the selected Treeview row
+        selected_item = notificationTree.focus()
+        values = notificationTree.item(selected_item, 'values') if selected_item else None
+        db_id = values[0] if values else None
         if db_id is not None:
             import sqlite3
             conn = sqlite3.connect(LSB.db_name)
             sql = ("UPDATE Notification_List SET Request_date=?, Request_time=?, Unit=?, Location=?, Agency=?, Notification_date=?, Notification_time=?, USER_ID=?, Nature=? WHERE ID=?")
-            print('DEBUG: SQL:', sql)
-            print('DEBUG: Params:', (req_date, req_time, unit, location, agency, notif_date, notif_time, user, nature, db_id))
             conn.execute(sql, (req_date, req_time, unit, location, agency, notif_date, notif_time, user, nature, db_id))
             conn.commit()
             conn.close()
             listBoxPop()
         else:
-            print('DEBUG: db_id is None, update not performed.')
+            pass
         edit_win.destroy()
     Button(edit_win, text='Save', command=save_edits, width=20).pack(pady=10)
     Button(edit_win, text='Cancel', command=edit_win.destroy, width=20).pack(pady=(0, 20))
@@ -261,20 +436,19 @@ def edit_selected_record():
 def resetNotificationTable():
     import SQLiteDBTools
     SQLiteDBTools.addTable()
-    print('Notification_List table has been reset.')
+    # ...existing code...
 
 def displayResults():
     top = Toplevel(root)
-    top.minsize(425, 300)
+    top.geometry('550x400')
     top.title('Baltimore County Police Dispatch LiteSearch')
-    top.iconbitmap('imagery\\Traffic_Light.ico')
-
+    top.iconbitmap('imagery\Traffic_Light.ico')
+    center_window(top, 550, 400)
     header_frame = Frame(top)
     header_frame.pack(fill='x', pady=(10,0))
     entryLabel = Label(header_frame, text='Create Notification Record', font=('Arial', 14, 'bold'))
     entryLabel.pack(padx=10, pady=5)
     entryLabel.configure(anchor='center', justify='center')
-
     # Show search data
     entry = searchEntry.get()
     entryData = Label(header_frame, text=f'Search: {entry}', font=('Arial', 12, 'italic'))
@@ -435,7 +609,6 @@ def displayResults():
         # Save to DB with correct mapping
         conn = sqlite3.connect(db_name)
         sql = ("INSERT INTO Notification_List (Request_date, Request_time, Unit, Location, Agency, Notification_date, Notification_time, USER_ID, Nature) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
-        print('DEBUG: Saving new record:', (request_date, request_time, unit, location, agency, notification_date, notification_time, user, nature))
         conn.execute(sql, (request_date, request_time, unit, location, agency, notification_date, notification_time, user, nature))
         conn.commit()
         conn.close()
@@ -445,10 +618,10 @@ def displayResults():
 
 ### --- Main Window Initialization --- ###
 root = Tk()
-root.minsize(525, 525)
 root.title('Baltimore County Police Dispatch LiteSearch')
 root.configure(bg='white')
-root.iconbitmap('imagery\\Traffic_Light.ico')
+root.iconbitmap('imagery\Traffic_Light.ico')
+center_window(root, 1050, 600)
 LSB.log_event('PROGRAM START', 'PROGRAM STARTED SUCCESSFULLY', 'SYS')
 
 # Context menu for Treeview
@@ -457,22 +630,25 @@ context_menu.add_command(label='Edit Record', command=lambda: edit_selected_reco
 
 # Treeview for saved notifications
 columns = (
-    'Request_Date/Time', 'Unit', 'Location', 'Agency', 'Nature', 'Notification_Date/Time', 'USER_ID', 'Record_Added'
+    'DB_ID', 'Request_Date/Time', 'Unit', 'Location', 'Agency', 'Nature', 'Notification_Date/Time', 'USER_ID', 'Record_Added'
 )
 notificationTree = ttk.Treeview(root, columns=columns, show='headings', height=15)
+# Unified column widths for both initialization and resetEntry
 column_widths = {
+    'DB_ID': 0,  # Hide DB_ID column
     'Request_Date/Time': 120,
     'Unit': 60,
     'Location': 300,
-    'Agency': 110,
-    'Nature': 180,
+    'Agency': 180,  # Increased width for Agency
+    'Nature': 60,   # Decreased width for Nature
     'Notification_Date/Time': 140,
-    'USER_ID': 70,
+    'USER_ID':60,
     'Record_Added': 120
 }
 for col in columns:
     notificationTree.heading(col, text=col.replace('_', ' '))
-    notificationTree.column(col, width=column_widths[col], anchor='center', stretch=True)
+    notificationTree.column(col, width=column_widths[col], anchor='w' if col == 'Location' else 'center', stretch=True)
+notificationTree.column('DB_ID', width=0, stretch=False)  # Hide DB_ID column
 scrollbarY = Scrollbar(root, orient=VERTICAL, command=notificationTree.yview)
 notificationTree.config(yscrollcommand=scrollbarY.set)
 
@@ -483,7 +659,7 @@ root.config(menu=menu)
 filemenu = Menu(menu)
 menu.add_cascade(label='File', menu=filemenu)
 filemenu.add_command(label='Log', command=logFiles)
-filemenu.add_command(label='Reset Notification Table', command=resetNotificationTable)
+filemenu.add_command(label='Generate Weekly Report', command=open_weekly_report_preview)
 #Help Menu
 helpmenu = Menu(menu)
 menu.add_cascade(label='Help', menu=helpmenu)
@@ -505,8 +681,15 @@ resetButton = Button(root, text='Reset', width=25, command=resetEntry)
 
 # Add extra space before Treeview search bar
 Frame(root, height=16, bg='white').pack()
-treeSearchLabel = Label(root, text='Search Notifications:', font=('Arial', 10, 'bold'), background='white')
-treeSearchEntry = Entry(root, width=50, background='white')
+# Create a frame for the search bar and reset button, but do NOT pack it here
+treeSearchFrame = Frame(root, bg='white')
+treeSearchLabel = Label(treeSearchFrame, text='Search Notifications:', font=('Arial', 10, 'bold'), background='white')
+treeSearchLabel.pack(side='left', padx=(0, 5))
+treeSearchEntry = Entry(treeSearchFrame, width=40, background='white')
+treeSearchEntry.pack(side='left', padx=(0, 5), pady=2.5)
+# Create a dedicated reset button for the search bar
+searchBarResetButton = Button(treeSearchFrame, text='Reset', width=12, command=resetTreeSearchEntry)
+searchBarResetButton.pack(side='left', padx=(5, 0), pady=2.5)
 
 def filter_treeview(event=None):
     query = treeSearchEntry.get().lower()
@@ -523,17 +706,20 @@ headerLabel.pack()
 searchLabel.pack(padx=3)
 searchEntry.pack(padx=5, pady=2.5)
 searchButton.pack(pady=2.5)
-treeSearchLabel.pack(padx=3)
-treeSearchEntry.pack(padx=5, pady=2.5)
-resetButton.pack(pady=2.5)
+# Add vertical padding above the search bar
+Frame(root, height=16, bg='white').pack()
+treeSearchFrame.pack(fill='x', padx=5, pady=(5, 0))
 notificationTree.pack(side=LEFT, fill=BOTH, expand=True)
 scrollbarY.pack(side=RIGHT, fill=Y)
-notificationTree.column('Location', width=200, anchor='center', stretch=True)
+# Ensure Location column stays left-justified
+notificationTree.column('Location', anchor='w')
 notificationTree.bind('<Button-3>', show_treeview_context_menu)
 
 # Global Variables
 db_name = "litesearch.db"
 table_name = "LiteBookData"
+# Track all Treeview item IDs to ensure complete deletion
+all_treeview_ids = set()
 
 # Sets the appid for the program. This is used to set the icon in the taskbar.
 myappid = u'Madairy.LiteSearch.1.0.0'
@@ -564,5 +750,8 @@ def remove_notes_column_from_db():
 remove_notes_column_from_db()
 
 listBoxPop()  # Populate treeview with data on program start
+
+# Force centering after all widgets are packed
+center_window(root, 1050, 600)
 
 root.mainloop()
