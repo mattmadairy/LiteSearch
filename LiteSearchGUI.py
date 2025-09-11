@@ -848,24 +848,8 @@ def remove_notes_column_from_db():
         conn.commit()
     conn.close()
 
-
-def add_incident_column_to_db():
-    import sqlite3
-    conn = sqlite3.connect(db_name)
-    cursor = conn.cursor()
-    cursor.execute("PRAGMA table_info(Notification_List)")
-    columns = [row[1].lower() for row in cursor.fetchall()]
-    if 'incident' not in columns:
-        try:
-            cursor.execute("ALTER TABLE Notification_List ADD COLUMN Incident TEXT")
-            conn.commit()
-        except Exception:
-            pass
-    conn.close()
-
-# Call these once at startup
+# Call this once at startup to ensure 'notes' column is removed
 remove_notes_column_from_db()
-add_incident_column_to_db()
 
 listBoxPop()  # Populate treeview with data on program start
 
