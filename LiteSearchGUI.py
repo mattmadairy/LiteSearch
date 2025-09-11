@@ -72,6 +72,8 @@ def resetTreeSearchEntry():
 # Print preview window for weekly report
 def open_weekly_report_preview():
     preview_win = Toplevel()
+    preview_win.focus_force()
+    preview_win.grab_set()
     preview_win.title("Weekly Report Preview")
     preview_win.geometry("800x600")
     center_window(preview_win, 800, 600)
@@ -231,6 +233,8 @@ def logFiles():
     # ...existing code...
     LSB.log_event('REQUEST', 'LOG FILES TAB REQUESTED', 'MLM91')
     top = Toplevel()
+    top.focus_force()
+    top.grab_set()
     top.geometry('425x200')
     center_window(top, 425, 200)
     top.title('Baltimore County Police Dispatch LiteSearch')
@@ -246,6 +250,8 @@ def logFiles():
 def about():
     LSB.log_event('REQUEST', 'REQUEST ABOUT INFO', 'MLM91')
     top = Toplevel()
+    top.focus_force()
+    top.grab_set()
     top.geometry('425x200')
     center_window(top, 425, 200)
     top.title('Baltimore County Police Dispatch LiteSearch')
@@ -258,6 +264,8 @@ def about():
 def license():
     LSB.log_event('REQUEST', 'REQUEST LICENSE INFO', 'MLM91')
     top = Toplevel()
+    top.focus_force()
+    top.grab_set()
     top.geometry('425x350')
     center_window(top, 425, 350)
     top.title('Baltimore County Police Dispatch LiteSearch')
@@ -279,6 +287,8 @@ def support():
         textBox.delete(1.0, END)
     LSB.log_event('REQUEST', 'REQUEST SUPPORT WINDOW', 'MLM91')
     top = Toplevel()
+    top.focus_force()
+    top.grab_set()
     top.geometry('425x365')
     center_window(top, 425, 365)
     top.title('Baltimore County Police Dispatch LiteSearch')
@@ -357,6 +367,8 @@ def edit_selected_record():
     # ...existing code...
     labels = ['Request Date:', 'Request Time:', 'Unit:', 'Location:', 'Agency:', 'Nature:', 'Notification Date:', 'Notification Time:', 'User:', 'Record Added:']
     edit_win = Toplevel(root)
+    edit_win.focus_force()
+    edit_win.grab_set()
     edit_win.title('Baltimore County Police Dispatch LiteSearch')
     edit_win.geometry('425x490')
     center_window(edit_win, 425, 490)
@@ -646,7 +658,8 @@ column_widths = {
     'Record_Added': 120
 }
 for col in columns:
-    notificationTree.heading(col, text=col.replace('_', ' '))
+    heading_text = 'User ID' if col == 'USER_ID' else col.replace('_', ' ')
+    notificationTree.heading(col, text=heading_text)
     notificationTree.column(col, width=column_widths[col], anchor='w' if col == 'Location' else 'center', stretch=True)
 notificationTree.column('DB_ID', width=0, stretch=False)  # Hide DB_ID column
 scrollbarY = Scrollbar(root, orient=VERTICAL, command=notificationTree.yview)
@@ -679,6 +692,88 @@ searchEntry = Entry(root, width=50, background='white')
 searchButton = Button(root, text='Create Record', width=25, command=displayResults)
 resetButton = Button(root, text='Reset', width=25, command=resetEntry)
 
+# Make main search dynamic
+
+# Improved filter: always repopulate full list if query is empty (including after backspace)
+def filter_main_search(event=None):
+    query = searchEntry.get().strip().lower()
+    notificationTree.delete(*notificationTree.get_children())
+    notificationsList = LSB.listBoxData()
+    if not query:
+        # Repopulate all
+        for notification in notificationsList:
+            if len(notification) >= 11:
+                cleaned = [str(x).replace('\n', ' ') if isinstance(x, str) else x for x in notification]
+                db_id = cleaned[0]
+                request_date = cleaned[2]
+                request_time = cleaned[3]
+                unit = cleaned[4]
+                location = cleaned[5]
+                agency = cleaned[6]
+                notification_date = cleaned[7]
+                notification_time = cleaned[8]
+                user = cleaned[9]
+                nature = cleaned[10]
+                record_added = cleaned[1]
+                notification_date_display = notification_date
+                try:
+                    notification_date_display = datetime.strptime(notification_date, '%Y-%m-%d').strftime('%m-%d-%Y')
+                except Exception:
+                    pass
+                values = [
+                    db_id,
+                    f"{request_date} {request_time}",
+                    unit,
+                    location,
+                    agency,
+                    nature,
+                    f"{notification_date_display} {notification_time}",
+                    user,
+                    record_added
+                ]
+                notificationTree.insert('', 'end', values=values)
+            else:
+                padded = [''] * 9
+                notificationTree.insert('', 'end', values=padded)
+        return
+    # Filtered results
+    for notification in notificationsList:
+        if len(notification) >= 11:
+            cleaned = [str(x).replace('\n', ' ') if isinstance(x, str) else x for x in notification]
+            db_id = cleaned[0]
+            request_date = cleaned[2]
+            request_time = cleaned[3]
+            unit = cleaned[4]
+            location = cleaned[5]
+            agency = cleaned[6]
+            notification_date = cleaned[7]
+            notification_time = cleaned[8]
+            user = cleaned[9]
+            nature = cleaned[10]
+            record_added = cleaned[1]
+            notification_date_display = notification_date
+            try:
+                notification_date_display = datetime.strptime(notification_date, '%Y-%m-%d').strftime('%m-%d-%Y')
+            except Exception:
+                pass
+            values = [
+                db_id,
+                f"{request_date} {request_time}",
+                unit,
+                location,
+                agency,
+                nature,
+                f"{notification_date_display} {notification_time}",
+                user,
+                record_added
+            ]
+            if any(query in str(v).lower() for v in values):
+                notificationTree.insert('', 'end', values=values)
+        else:
+            padded = [''] * 9
+            # Only show padded if query is empty (already handled above)
+            pass
+
 # Add extra space before Treeview search bar
 Frame(root, height=16, bg='white').pack()
 # Create a frame for the search bar and reset button, but do NOT pack it here
@@ -687,19 +782,26 @@ treeSearchLabel = Label(treeSearchFrame, text='Search Notifications:', font=('Ar
 treeSearchLabel.pack(side='left', padx=(0, 5))
 treeSearchEntry = Entry(treeSearchFrame, width=40, background='white')
 treeSearchEntry.pack(side='left', padx=(0, 5), pady=2.5)
-# Create a dedicated reset button for the search bar
-searchBarResetButton = Button(treeSearchFrame, text='Reset', width=12, command=resetTreeSearchEntry)
-searchBarResetButton.pack(side='left', padx=(5, 0), pady=2.5)
 
-def filter_treeview(event=None):
-    query = treeSearchEntry.get().lower()
+# Remove dynamic search and add button-based search for notifications
+def search_notifications():
+    query = treeSearchEntry.get().strip().lower()
+    # Reattach all items first
+    for item in notificationTree.get_children():
+        notificationTree.reattach(item, '', 'end')
+    if not query:
+        return
+    # Detach items that do not match
     for item in notificationTree.get_children():
         values = notificationTree.item(item, 'values')
-        if any(query in str(v).lower() for v in values):
-            notificationTree.reattach(item, '', 'end')
-        else:
+        if not any(query in str(v).lower() for v in values):
             notificationTree.detach(item)
-treeSearchEntry.bind('<KeyRelease>', filter_treeview)
+
+# Add the search button before the reset button
+searchNotificationsButton = Button(treeSearchFrame, text='Search', width=12, command=search_notifications)
+searchNotificationsButton.pack(side='left', padx=(5, 0), pady=2.5)
+searchBarResetButton = Button(treeSearchFrame, text='Reset', width=12, command=resetTreeSearchEntry)
+searchBarResetButton.pack(side='left', padx=(5, 0), pady=2.5)
 
 masterLabel.pack()
 headerLabel.pack()
@@ -746,8 +848,24 @@ def remove_notes_column_from_db():
         conn.commit()
     conn.close()
 
-# Call this once at startup to ensure 'notes' column is removed
+
+def add_incident_column_to_db():
+    import sqlite3
+    conn = sqlite3.connect(db_name)
+    cursor = conn.cursor()
+    cursor.execute("PRAGMA table_info(Notification_List)")
+    columns = [row[1].lower() for row in cursor.fetchall()]
+    if 'incident' not in columns:
+        try:
+            cursor.execute("ALTER TABLE Notification_List ADD COLUMN Incident TEXT")
+            conn.commit()
+        except Exception:
+            pass
+    conn.close()
+
+# Call these once at startup
 remove_notes_column_from_db()
+add_incident_column_to_db()
 
 listBoxPop()  # Populate treeview with data on program start
 
