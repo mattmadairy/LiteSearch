@@ -46,26 +46,37 @@ def contactInfo(id):
     conn = sqlite3.connect(db_name)
     cursor = conn.cursor()
     query = "SELECT * FROM Agency_Contact_Information WHERE id = ?"
-    cursor.execute(query, (id,))
-    queryReturn = cursor.fetchone()
-    if queryReturn:
-        qrtReturn = list(queryReturn)
-    else:
-        print('No record found with ID:', id)
-        conn.close()
-        return None
-    if qrtReturn[0] == 7:
-        if not weekday or not businessHours:
-            cursor.execute(query, ('2',))
-            afterHours = cursor.fetchone()
+    # Time decision structure
+    now = dt.datetime.now()
+    current_time = int(now.strftime('%H%M'))
+    weekday = now.weekday() >= 0 and now.weekday() <= 4  # Monday=0, Friday=4
+    business_hours = current_time >= 700 and current_time <= 1600
+    print(f"DEBUG: Today is {weekday} ({now.weekday()}), Time: {now.strftime('%H:%M')}, current_time={current_time}, weekday={weekday}, business_hours={business_hours}, id={id}")
+    if id == 7:
+        print(f"DEBUG: Branch decision for id==7: weekday={weekday}, business_hours={business_hours}")
+        if weekday and business_hours:
+            print("DEBUG: Bulletproof: SELECT agency 7 (weekday and business hours)")
+            cursor.execute(query, (7,))
+            agency_row = cursor.fetchone()
+            print(f"DEBUG: Bulletproof: Returned agency row: {agency_row}")
             conn.close()
-            return afterHours
+            return agency_row
         else:
+            print("DEBUG: Bulletproof: SELECT agency 2 (not weekday or not business hours)")
+            cursor.execute(query, (2,))
+            agency_row = cursor.fetchone()
+            print(f"DEBUG: Bulletproof: Returned agency row: {agency_row}")
+            if agency_row is None:
+                print("DEBUG: No record found for agency id 2 in Agency_Contact_Information table!")
             conn.close()
-            return qrtReturn
+            return agency_row
     else:
+        print(f"DEBUG: Bulletproof: SELECT agency {id} info (id not 7)")
+        cursor.execute(query, (id,))
+        agency_row = cursor.fetchone()
+        print(f"DEBUG: Bulletproof: Returned agency row: {agency_row}")
         conn.close()
-        return qrtReturn
+        return agency_row
 
 def notificationRecord(requestDate, requestTime, unit, location, agency, notificationDate, notificationTime, UserId):
     """Inserts a new notification record into Notification_List with separate date and time columns."""
