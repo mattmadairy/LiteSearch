@@ -51,30 +51,31 @@ def contactInfo(id):
     current_time = int(now.strftime('%H%M'))
     weekday = now.weekday() >= 0 and now.weekday() <= 4  # Monday=0, Friday=4
     business_hours = current_time >= 700 and current_time <= 1600
-    print(f"DEBUG: Today is {weekday} ({now.weekday()}), Time: {now.strftime('%H:%M')}, current_time={current_time}, weekday={weekday}, business_hours={business_hours}, id={id}")
+        # ...removed debug print statement...
     if id == 7:
-        print(f"DEBUG: Branch decision for id==7: weekday={weekday}, business_hours={business_hours}")
+           # ...removed debug print statement...
         if weekday and business_hours:
-            print("DEBUG: Bulletproof: SELECT agency 7 (weekday and business hours)")
+              # ...removed debug print statement...
             cursor.execute(query, (7,))
             agency_row = cursor.fetchone()
-            print(f"DEBUG: Bulletproof: Returned agency row: {agency_row}")
+              # ...removed debug print statement...
             conn.close()
             return agency_row
         else:
-            print("DEBUG: Bulletproof: SELECT agency 2 (not weekday or not business hours)")
+              # ...removed debug print statement...
             cursor.execute(query, (2,))
             agency_row = cursor.fetchone()
-            print(f"DEBUG: Bulletproof: Returned agency row: {agency_row}")
+              # ...removed debug print statement...
             if agency_row is None:
-                print("DEBUG: No record found for agency id 2 in Agency_Contact_Information table!")
+                 # ...removed debug print statement...
+                 pass
             conn.close()
             return agency_row
     else:
-        print(f"DEBUG: Bulletproof: SELECT agency {id} info (id not 7)")
+           # ...removed debug print statement...
         cursor.execute(query, (id,))
         agency_row = cursor.fetchone()
-        print(f"DEBUG: Bulletproof: Returned agency row: {agency_row}")
+           # ...removed debug print statement...
         conn.close()
         return agency_row
 

@@ -255,10 +255,27 @@ def logFiles():
     top.config(menu=menu)
     filemenu = Menu(menu)
     menu.add_cascade(label='File', menu=filemenu)
-    filemenu.add_command(label='Print', command=lambda: print('print log window'))
+    filemenu.add_command(label='Print', command=lambda: None)
     logLabel = Label(top, text='Log Files', font=('Arial', 12, 'bold'))
     logLabel.pack()
-    center_window(top, 425, 200)
+    # Add Treeview widget for event_log table
+    from tkinter import ttk
+    columns = ('id', 'timestamp', 'user', 'event_type', 'message')
+    tree = ttk.Treeview(top, columns=columns, show='headings', height=8)
+    for col in columns:
+        tree.heading(col, text=col.capitalize())
+        tree.column(col, width=80 if col == 'id' else 120, anchor='w')
+    tree.pack(padx=10, pady=10, fill='x')
+
+    import sqlite3
+    conn = sqlite3.connect('litesearch.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT id, timestamp, user, event_type, message FROM event_log ORDER BY id DESC LIMIT 100')
+    rows = cursor.fetchall()
+    conn.close()
+    for row in rows:
+        tree.insert('', 'end', values=row)
+    center_window(top, 600, 300)
 
 def about():
     LSB.log_event('REQUEST', 'REQUEST ABOUT INFO', 'MLM91')
@@ -380,7 +397,7 @@ def displayResults():
         agency_info = None
         if maintained_by_num:
             agency_info = LSB.contactInfo(maintained_by_num)
-            print(f"DEBUG: maintained_by_num={maintained_by_num}, agency_info={agency_info}")
+            # ...removed debug print statement...
 
         # Display location and agency info
         locationLabel = Label(info_frame, text='Location:', font=('Arial', 12))
