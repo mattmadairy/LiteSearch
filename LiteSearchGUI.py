@@ -124,7 +124,7 @@ def open_weekly_report_preview():
         conn = sqlite3.connect(LSB.db_name)
         cursor = conn.cursor()
         # Filter using timestamp field, make end date inclusive
-        cursor.execute("SELECT * FROM Notification_List WHERE timestamp >= ? AND timestamp < ? ORDER BY timestamp DESC", (start.strftime('%Y-%m-%d'), end_inclusive.strftime('%Y-%m-%d')))
+        cursor.execute("SELECT * FROM Notification_List WHERE timestamp >= ? AND timestamp < ? ORDER BY timestamp ASC", (start.strftime('%Y-%m-%d'), end_inclusive.strftime('%Y-%m-%d')))
         rows = cursor.fetchall()
         conn.close()
         # --- FIXED INDENTATION ---
@@ -210,8 +210,37 @@ def open_weekly_report_preview():
         else:
             text.insert('end', "No records found.\n")
         text.config(state='disabled')
+    
+    def print_report():
+        """Print the current report content"""
+        try:
+            import os
+            import tempfile
+            
+            # Get the content from the text widget
+            report_content = text.get('1.0', 'end-1c')
+            
+            # Create a temporary file
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as temp_file:
+                temp_file.write(report_content)
+                temp_file_path = temp_file.name
+            
+            # Open the file with the default application (usually Notepad on Windows)
+            # From Notepad, user can print using Ctrl+P or File > Print
+            os.startfile(temp_file_path)
+            
+            # Show a message to the user
+            messagebox.showinfo("Print", "Report opened in text editor. Use File > Print or Ctrl+P to print.")
+            
+        except Exception as e:
+            messagebox.showerror("Print Error", f"Could not open report for printing: {str(e)}")
+    
     generate_btn = Button(dates_frame, text="Generate", command=populate_text_with_report, width=12)
     generate_btn.pack(side='left', padx=(10, 0))
+    
+    print_btn = Button(dates_frame, text="Print", command=print_report, width=12)
+    print_btn.pack(side='left', padx=(5, 0))
+    
     populate_text_with_report()
     # ...existing code for open_weekly_report_preview (dates_frame, header_text, get_timeframe, text widget, populate_text_with_report, buttons, etc.)...
 
